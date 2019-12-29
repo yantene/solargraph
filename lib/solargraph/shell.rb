@@ -17,18 +17,24 @@ module Solargraph
     
     option :host, type: :string, aliases: :h, desc: 'The server host', default: '127.0.0.1'
     option :port, type: :numeric, aliases: :p, desc: 'The server port', default: 7658
+    option :file, type: :boolean, aliases: :f, desc: 'Create current-solargraph file'
     def socket
+      abort if File.exist?('.current-solargraph')
+
       require 'backport'
       port = options[:port]
       port = available_port if port.zero?
       Backport.run do
         Signal.trap("INT") do
           Backport.stop
+          File.delete('.current-solargraph') if options[:file]
         end
         Signal.trap("TERM") do
           Backport.stop
+          File.delete('.current-solargraph') if options[:file]
         end
         Backport.prepare_tcp_server host: options[:host], port: port, adapter: Solargraph::LanguageServer::Transport::Adapter
+        File.write('.current-solargraph', [options[:host], port].join(':')) if options[:file]
         STDERR.puts "Solargraph is listening PORT=#{port} PID=#{Process.pid}"
       end
     end
